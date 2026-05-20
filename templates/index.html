@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billing Issues Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f4f6f9;
+      color: #1a1d23;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e2e6ed;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .header-left h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #1a1d23;
+    }
+    .header-left p {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .channel-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid #bfdbfe;
+    }
+    .channel-badge::before { content: "#"; opacity: 0.6; }
+
+    /* ── Main ── */
+    main {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 24px 60px;
+    }
+
+    /* ── Analyze button ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .meta {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+    .meta span { color: #6b7280; font-weight: 500; }
+
+    #analyzeBtn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px 22px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #analyzeBtn:hover { background: #1d4ed8; }
+    #analyzeBtn:active { transform: scale(0.97); }
+    #analyzeBtn:disabled { background: #93c5fd; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .loading .spinner { display: block; }
+    .loading .btn-icon { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error banner ── */
+    #errorBanner {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 0.875rem;
+      margin-bottom: 24px;
+    }
+
+    /* ── Empty / placeholder ── */
+    #placeholder {
+      text-align: center;
+      padding: 72px 0;
+      color: #9ca3af;
+    }
+    #placeholder svg { margin-bottom: 16px; opacity: 0.35; }
+    #placeholder p { font-size: 0.9rem; }
+
+    /* ── Results list ── */
+    #results { display: none; }
+
+    .results-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #6b7280;
+      margin-bottom: 14px;
+    }
+
+    .issue-card {
+      background: #fff;
+      border: 1px solid #e5e9f0;
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 0 16px;
+      align-items: start;
+      transition: box-shadow 0.15s;
+    }
+    .issue-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+
+    /* rank column */
+    .rank {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .rank-1 { background: #fef9c3; color: #a16207; }
+    .rank-2 { background: #f1f5f9; color: #475569; }
+    .rank-3 { background: #fff7ed; color: #c2410c; }
+    .rank-n { background: #f0fdf4; color: #15803d; }
+
+    /* body column */
+    .issue-body { min-width: 0; }
+    .issue-type {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+    .example {
+      font-size: 0.82rem;
+      color: #6b7280;
+      line-height: 1.55;
+      font-style: italic;
+    }
+    .example::before { content: "\201C"; }
+    .example::after  { content: "\201D"; }
+
+    /* count badge */
+    .count-badge {
+      flex-shrink: 0;
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Billing Issues Analyzer</h1>
+    <p>Spots recurring problems from the last 30 support tickets</p>
+  </div>
+  <span class="channel-badge">billing_support_tickets</span>
+</header>
+
+<main>
+
+  <div class="controls">
+    <p class="meta" id="metaLine">Run an analysis to see results.</p>
+    <button id="analyzeBtn" onclick="runAnalysis()">
+      <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      <div class="spinner"></div>
+      Analyze Now
+    </button>
+  </div>
+
+  <div id="errorBanner"></div>
+
+  <div id="placeholder">
+    <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 24 24"
+         fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+    <p>Click <strong>Analyze Now</strong> to fetch the latest tickets and rank recurring issues.</p>
+  </div>
+
+  <div id="results">
+    <p class="results-header">Recurring issues — ranked by frequency</p>
+    <div id="issueList"></div>
+  </div>
+
+</main>
+
+<script>
+  async function runAnalysis() {
+    const btn = document.getElementById('analyzeBtn');
+    const errorBanner = document.getElementById('errorBanner');
+    const placeholder = document.getElementById('placeholder');
+    const results = document.getElementById('results');
+    const metaLine = document.getElementById('metaLine');
+
+    // loading state
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.querySelector('.btn-icon').style.display = 'none';
+    errorBanner.style.display = 'none';
+    placeholder.style.display = 'none';
+    results.style.display = 'none';
+    metaLine.textContent = 'Fetching messages and analyzing…';
+
+    try {
+      const res = await fetch('/api/analyze');
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      renderResults(data);
+      metaLine.innerHTML =
+        `Analyzed <strong>${data.message_count}</strong> messages from ` +
+        `<strong>${data.channel}</strong> &mdash; ${data.analyzed_at}`;
+
+    } catch (err) {
+      errorBanner.textContent = `Error: ${err.message}`;
+      errorBanner.style.display = 'block';
+      placeholder.style.display = 'block';
+      metaLine.textContent = 'Analysis failed.';
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  function rankClass(n) {
+    if (n === 1) return 'rank-1';
+    if (n === 2) return 'rank-2';
+    if (n === 3) return 'rank-3';
+    return 'rank-n';
+  }
+
+  function renderResults(data) {
+    const list = document.getElementById('issueList');
+    list.innerHTML = '';
+
+    if (!data.issues || data.issues.length === 0) {
+      list.innerHTML = '<p style="color:#6b7280;font-size:.9rem">No recurring issues found — every problem appeared only once.</p>';
+    } else {
+      data.issues.forEach((issue, i) => {
+        const rank = i + 1;
+        const card = document.createElement('div');
+        card.className = 'issue-card';
+        card.innerHTML = `
+          <div class="rank ${rankClass(rank)}">${rank}</div>
+          <div class="issue-body">
+            <div class="issue-type">${escHtml(issue.issue_type)}</div>
+            <div class="example">${escHtml(issue.example)}</div>
+          </div>
+          <span class="count-badge">×${issue.count}</span>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    document.getElementById('results').style.display = 'block';
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+
+</body>
+</html>
